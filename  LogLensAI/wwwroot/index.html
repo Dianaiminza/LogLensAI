@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LogLens AI — .NET Error Explainer</title>
+    <style>
+        :root {
+            font-family: Inter, system-ui, -apple-system, sans-serif;
+            color: #e8edf5;
+            background: #10141c;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at top, #202d42, #10141c 55%);
+        }
+
+        main {
+            width: min(900px, 92%);
+            margin: 0 auto;
+            padding: 48px 0;
+        }
+
+        .eyebrow {
+            color: #85c7ff;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        h1 { font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0; }
+        p { line-height: 1.6; color: #b8c3d4; }
+
+        .panel {
+            background: #171e29;
+            border: 1px solid #303b4c;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+
+        label { display: block; font-weight: 700; margin-bottom: 12px; }
+
+        textarea {
+            width: 100%;
+            min-height: 220px;
+            resize: vertical;
+            border: 1px solid #435168;
+            border-radius: 10px;
+            padding: 14px;
+            color: #f5f7fb;
+            background: #0e131b;
+            font: 14px/1.6 ui-monospace, SFMono-Regular, monospace;
+        }
+
+        textarea:focus {
+            outline: 2px solid #64b5f6;
+            outline-offset: 2px;
+        }
+
+        button {
+            margin-top: 16px;
+            border: 0;
+            border-radius: 10px;
+            padding: 12px 18px;
+            color: #07111f;
+            background: #85c7ff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:disabled { opacity: 0.6; cursor: wait; }
+
+        .notice { font-size: 0.88rem; }
+        .result { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .error { color: #ffaaa8; }
+        .hidden { display: none; }
+
+        footer {
+            margin-top: 28px;
+            font-size: 0.85rem;
+            color: #92a0b3;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <div class="eyebrow">Local-first developer tool</div>
+    <h1>Understand your .NET errors.</h1>
+    <p>
+        Paste an exception or log excerpt. LogLens AI will explain what it
+        means and suggest practical debugging steps.
+    </p>
+
+    <section class="panel">
+        <label for="logInput">Log excerpt or exception</label>
+        <textarea id="logInput" maxlength="12000"
+                  placeholder="Example: System.NullReferenceException: Object reference not set to an instance of an object."></textarea>
+
+        <p class="notice">
+            Do not submit passwords, access tokens, personal information, or
+            confidential production logs. Basic secret redaction is not foolproof.
+        </p>
+
+        <button id="explainButton">Explain this error</button>
+        <p id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="resultPanel" class="panel hidden">
+        <h2>Analysis</h2>
+        <div id="result" class="result"></div>
+    </section>
+
+    <footer>
+        AI output may be incorrect. Verify suggestions against your code and logs.
+    </footer>
+</main>
+
+<script>
+    const input = document.getElementById("logInput");
+    const button = document.getElementById("explainButton");
+    const status = document.getElementById("status");
+    const resultPanel = document.getElementById("resultPanel");
+    const result = document.getElementById("result");
+
+    button.addEventListener("click", async () => {
+        const log = input.value.trim();
+
+        if (!log) {
+            status.textContent = "Paste a log or exception first.";
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Analysing...";
+        status.textContent = "Waiting for the local AI model...";
+        resultPanel.classList.add("hidden");
+        result.textContent = "";
+
+        try {
+            const response = await fetch("/api/logs/explain", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ log })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.detail || data.title || data.error ||
+                    "The request failed. Check that the API and model are running."
+                );
+            }
+
+            result.textContent = data.explanation;
+            resultPanel.classList.remove("hidden");
+            status.textContent =
+                `Model: ${data.model}. Review the explanation before applying a fix.`;
+        } catch (error) {
+            status.textContent = error.message;
+            status.className = "error";
+        } finally {
+            button.disabled = false;
+            button.textContent = "Explain this error";
+        }
+    });
+</script>
+</body>
+</html>
