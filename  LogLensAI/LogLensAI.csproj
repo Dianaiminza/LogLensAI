@@ -12,7 +12,6 @@
       <Content Include="..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>
-      <Content Include="wwwroot\index.html" />
     </ItemGroup>
 
 </Project>
